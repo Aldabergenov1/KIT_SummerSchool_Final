@@ -3,18 +3,84 @@ from fastapi.responses import JSONResponse
 from pathlib import Path
 import shutil
 import tempfile
+from fastapi.responses import HTMLResponse
+import time
+import json
+import asyncio
 
 from japanese_ocr import japanese_ocr
 from ja_to_end_translation import translate_japanese_to_english
-from sentiment_analysis_ja import analyze_japanese_emotion
+from sentiment_analysis_ja import analyze_english_emotion
 from voice_recognition import audio_transcription
 
 app = FastAPI()
 
 
+RESULT_PATH = Path(__file__).resolve().parent / "esp_result.json"
+print("Saving to absolute path:", RESULT_PATH.resolve())
+
+
+def save_result_to_file(result: dict):
+    result["retrieved"] = False
+    try:
+        with open(RESULT_PATH, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False)
+        print("Saved result to file.")
+    except Exception as e:
+        print(f"Error saving file: {e}")
+
+
+
+def load_result_from_file():
+    if RESULT_PATH.exists():
+        try:
+            with open(RESULT_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading file: {e}")
+    return None
+
+
+def mark_result_as_retrieved():
+    if RESULT_PATH.exists():
+        try:
+            with open(RESULT_PATH, "r+", encoding="utf-8") as f:
+                data = json.load(f)
+                data["retrieved"] = True
+                f.seek(0)
+                json.dump(data, f, ensure_ascii=False)
+                f.truncate()
+        except Exception as e:
+            print("Failed to mark as retrieved:", e)
+
+
+@app.get("/", response_class=HTMLResponse)
+async def main_form():
+    return """
+    <html>
+        <head>
+            <title>Upload Image or Audio</title>
+        </head>
+        <body>
+            <h2>Upload Image (camera or gallery)</h2>
+            <form action="/process_image/" enctype="multipart/form-data" method="post">
+                <input name="file" type="file" accept="image/*" capture="environment">
+                <input type="submit" value="Submit Image">
+            </form>
+
+            <h2>Upload Audio (microphone or file)</h2>
+            <form action="/process_audio/" enctype="multipart/form-data" method="post">
+                <input name="file" type="file" accept="audio/*" capture="microphone">
+                <input type="submit" value="Submit Audio">
+            </form>
+        </body>
+    </html>
+    """
+
+
 @app.post("/process_image/")
 async def process_image(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.heic', '.heif')):
         raise HTTPException(status_code=400, detail="Unsupported image file type")
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp:
@@ -31,19 +97,25 @@ async def process_image(file: UploadFile = File(...)):
 
     japanese_text = ocr_response["data"][0]
     english_text = translate_japanese_to_english(japanese_text)
-    emotion_result = analyze_japanese_emotion(japanese_text)
+    emotion_result = analyze_english_emotion(english_text)
 
-    return {
+    result =  {
         "source": "image",
         "japanese_text": japanese_text,
         "english_translation": english_text,
         "emotion_analysis": emotion_result
     }
+    
+    save_result_to_file(result)
+    print("Saving result:", result)
+    save_result_to_file(result)
+
+    return result
 
 
 @app.post("/process_audio/")
 async def process_audio(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a')):
+    if not file.filename.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a', '.mov')):
         raise HTTPException(status_code=400, detail="Unsupported audio file type")
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp:
@@ -60,16 +132,40 @@ async def process_audio(file: UploadFile = File(...)):
     Path(temp_path).unlink(missing_ok=True)
 
     english_text = translate_japanese_to_english(japanese_text)
-    emotion_result = analyze_japanese_emotion(japanese_text)
+    emotion_result = analyze_english_emotion(english_text)
 
-    return {
+    result =  {
         "source": "audio",
         "japanese_text": japanese_text,
         "english_translation": english_text,
         "emotion_analysis": emotion_result
     }
+    
+    save_result_to_file(result)
+    print("Saving result:", result)
+    save_result_to_file(result)
+
+    return result
+    
+    
+
+@app.get("/esp_check/")
+async def esp_check():
+    result = load_result_from_file()
+    if result and not result.get("retrieved", False):
+        # Планируем фоновую задачу, которая через 5 сек поставит retrieved=True
+        asyncio.create_task(delayed_mark_result_as_retrieved())
+        return result
+    return {"status": "no new data"}
+
+async def delayed_mark_result_as_retrieved():
+    await asyncio.sleep(5)  # ждем 5 секунд
+    mark_result_as_retrieved()
+    print("Marked result as retrieved (after ESP pulled it)")
+
+
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="debug")
