@@ -1,9 +1,15 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
 from pathlib import Path
 import shutil
 import tempfile
-from fastapi.responses import HTMLResponse
+
+from starlette.requests import Request
+
 import time
 import json
 import asyncio
@@ -54,28 +60,13 @@ def mark_result_as_retrieved():
             print("Failed to mark as retrieved:", e)
 
 
-@app.get("/", response_class=HTMLResponse)
-async def main_form():
-    return """
-    <html>
-        <head>
-            <title>Upload Image or Audio</title>
-        </head>
-        <body>
-            <h2>Upload Image (camera or gallery)</h2>
-            <form action="/process_image/" enctype="multipart/form-data" method="post">
-                <input name="file" type="file" accept="image/*" capture="environment">
-                <input type="submit" value="Submit Image">
-            </form>
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
-            <h2>Upload Audio (microphone or file)</h2>
-            <form action="/process_audio/" enctype="multipart/form-data" method="post">
-                <input name="file" type="file" accept="audio/*" capture="microphone">
-                <input type="submit" value="Submit Audio">
-            </form>
-        </body>
-    </html>
-    """
+
+@app.get("/", response_class=HTMLResponse)
+async def main_form(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.post("/process_image/")
@@ -153,13 +144,12 @@ async def process_audio(file: UploadFile = File(...)):
 async def esp_check():
     result = load_result_from_file()
     if result and not result.get("retrieved", False):
-        # Планируем фоновую задачу, которая через 5 сек поставит retrieved=True
         asyncio.create_task(delayed_mark_result_as_retrieved())
         return result
     return {"status": "no new data"}
 
 async def delayed_mark_result_as_retrieved():
-    await asyncio.sleep(5)  # ждем 5 секунд
+    await asyncio.sleep(2)
     mark_result_as_retrieved()
     print("Marked result as retrieved (after ESP pulled it)")
 

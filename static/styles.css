@@ -1,0 +1,65 @@
+/* Reset базовые отступы */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+    padding: 20px;
+    text-align: center;
+}
+
+.container {
+    background-color: #fff;
+    padding: 20px;
+    margin: 0 auto;
+    max-width: 480px;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    margin-bottom: 12px;
+    font-size: 1.4rem;
+    color: #222;
+}
+
+input[type="file"] {
+    display: block;
+    margin: 12px auto;
+    width: 90%;
+    max-width: 100%;
+}
+
+input[type="submit"] {
+    background-color: #007bff;
+    border: none;
+    color: white;
+    padding: 12px 24px;
+    font-size: 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 10px;
+    width: 90%;
+    max-width: 100%;
+    transition: background-color 0.3s ease;
+}
+
+input[type="submit"]:hover {
+    background-color: #0056b3;
+}
+
+/* Для более мелких экранов, чуть уменьшим текст */
+@media (max-width: 360px) {
+    h2 {
+        font-size: 1.2rem;
+    }
+
+    input[type="submit"] {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+    }
+}

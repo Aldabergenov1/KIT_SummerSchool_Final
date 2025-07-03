@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Upload Image or Audio</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+    <div class="container">
+        <h2>Upload Image (camera or gallery)</h2>
+        <form action="/process_image/" enctype="multipart/form-data" method="post">
+            <input name="file" type="file" accept="image/*" capture="environment" />
+            <input type="submit" value="Submit Image" />
+        </form>
+
+        <h2>Upload Audio (microphone or file)</h2>
+        <form action="/process_audio/" enctype="multipart/form-data" method="post">
+            <input name="file" type="file" accept="audio/*" capture="microphone" />
+            <input type="submit" value="Submit Audio" />
+        </form>
+    </div>
+</body>
+</html>

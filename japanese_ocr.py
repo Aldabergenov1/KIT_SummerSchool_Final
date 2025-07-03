@@ -7,8 +7,10 @@ from PIL import Image
 import os
 from dotenv import load_dotenv
 
+# env variables
 load_dotenv()
 
+# token and link for hugging face API
 HF_TOKEN = os.getenv("HF_TOKEN")
 API_URL = "https://detomo-japanese-ocr.hf.space/run/predict"
 
@@ -21,10 +23,13 @@ def japanese_ocr(image_path: str) -> dict:
         image_path (str): Path to the image file.
         
     Returns:
-        dict: JSON response from the API containing OCR results.
+        dict: JSON response from the API.
     """
+    
+    # read bytes for transmission
     with open(image_path, "rb") as f:
         image_bytes = f.read()
+        # base 64 encode for gradio in hugging face
         encoded_image = "data:image/webp;base64," + base64.b64encode(image_bytes).decode()
 
     # prepare the payload for the API request
