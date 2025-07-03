@@ -71,7 +71,7 @@ async def main_form(request: Request):
 
 @app.post("/process_image/")
 async def process_image(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.heic', '.heif')):
+    if not file.filename or not file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.heic', '.heif')):
         raise HTTPException(status_code=400, detail="Unsupported image file type")
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp:
@@ -106,16 +106,19 @@ async def process_image(file: UploadFile = File(...)):
 
 @app.post("/process_audio/")
 async def process_audio(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a', '.mov')):
+    if not file.filename or not file.filename.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a', '.mov')):
         raise HTTPException(status_code=400, detail="Unsupported audio file type")
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp:
+    suffix = Path(file.filename).suffix if file.filename else ""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         shutil.copyfileobj(file.file, tmp)
         temp_path = tmp.name
     file.file.close()
 
     try:
         japanese_text = audio_transcription(temp_path)
+        if not isinstance(japanese_text, str):
+            return JSONResponse(status_code=500, content={"error": "OCR did not return a string"})
     except Exception as e:
         Path(temp_path).unlink(missing_ok=True)
         return JSONResponse(status_code=500, content={"error": f"Transcription failed: {str(e)}"})

@@ -43,6 +43,6 @@ def analyze_english_emotion(text: str) -> dict:
 
 # example usage
 if __name__ == "__main__":
-    sample_text = "I hate you!"
+    sample_text = "Today the weather is so bad"
     result = analyze_english_emotion(sample_text)
     print(result)
